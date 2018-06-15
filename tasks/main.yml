@@ -1,53 +1,80 @@
 #!/usr/bin/env ansible-playbook
 ---
 
-- name: create management groups
+- name: manage groups
   group:
-    name: "{{ item.group | default(item.name) | mandatory }}"
-    system: true
-  loop_control:
-    label: "{{ item.group | default(item.name) | mandatory }}"
-  with_items: "{{ ansible_usermanagement_users }}"
-
-- name: create management users
-  user:
     name: "{{ item.name | mandatory }}"
-    group: "{{ item.group | default(item.name) }}"
-    comment: "{{ item.comment | default('Managed by Ansible') }}"
+    system: "{{ item.system | default('yes') }}"
+    state: "{{ item.state | default('present') }}"
   loop_control:
     label: "{{ item.name | mandatory }}"
-  with_items: "{{ ansible_usermanagement_users }}"
+  with_items: "{{ ansemjo_usermanagement_groups }}"
 
-- name: add authorized keys per user
+- name: manage users
+  user:
+    name: "{{ item.name | mandatory }}"
+    group: "{{ item.group | default(omit) }}"
+    groups: "{{ item.groups | default(omit) }}"
+    comment: "{{ item.comment | default('Managed by Ansible') }}"
+    home: "{{ item.home | default(omit) }}"
+    create_home: "{{ item.create_home | default(omit) }}"
+    remove: yes
+    shell: "{{ item.shell | default(omit) }}"
+    skeleton: "{{ item.skeleton | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    system: "{{ item.system | default('yes') }}"
+  loop_control:
+    label: "{{ item.name | mandatory }}"
+  with_items: "{{ ansemjo_usermanagement_users }}"
+
+- name: add authorized keys
   authorized_key:
     user: "{{ item.0.name }}"
-    key: "{{ lookup('file', item.1) | mandatory }}"
+    key: "{{ item.1 | mandatory }}"
   loop_control:
     label:
       user: "{{ item.0.name }}"
-      key: "{{ item.1 | mandatory }}"
+      key: "{{ item.1[:25] + '...' + item.1[-25:] }}"
+  when: (item.0.state | default('present')) == 'present'
   with_subelements:
-    - "{{ ansible_usermanagement_users }}"
-    - keys
+    - "{{ ansemjo_usermanagement_users }}"
+    - authorized_keys
 
 - name: ensure sudo is installed
   package:
     name: sudo
     state: present
 
-- name: TRANSITION / ensure clean sudoers file
+- name: ensure clean sudoers file
   file:
-    path: /etc/sudoers.d/ansible-managed
+    path: "{{ ansemjo_usermanagement_sudoers }}"
     state: absent
-  when: ansible_usermanagement_transition | default(true)
+  when: ansemjo_usermanagement_cleansudoers | default(true)
 
-- name: allow passwordless sudo for users
+- name: configure passwordless sudo for groups
   lineinfile:
-    dest: /etc/sudoers.d/ansible-managed
+    dest: "{{ ansemjo_usermanagement_sudoers }}"
+    create: true
+    regexp: "^%{{ item.name }}"
+    line: "%{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
+    state: "{{ 'present' if (((item.state | default('present')) == 'present') and (item.sudo | default(false))) else 'absent' }}"
+    validate: visudo -cf %s
+  loop_control:
+    label:
+      group: "{{ item.name }}"
+      state: "{{ 'allowed' if (((item.state | default('present')) == 'present') and (item.sudo | default(false))) else 'disallowed' }}"
+  with_items: "{{ ansemjo_usermanagement_groups }}"
+
+- name: configure passwordless sudo for users
+  lineinfile:
+    dest: "{{ ansemjo_usermanagement_sudoers }}"
     create: true
     regexp: "^{{ item.name }}"
     line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
+    state: "{{ 'present' if (((item.state | default('present')) == 'present') and (item.sudo | default(false))) else 'absent' }}"
     validate: visudo -cf %s
   loop_control:
-    label: "{{ item.group | default(item.name) }}"
-  with_items: "{{ ansible_usermanagement_users }}"
+    label:
+      user: "{{ item.name }}"
+      state: "{{ 'allowed' if (((item.state | default('present')) == 'present') and (item.sudo | default(false))) else 'disallowed' }}"
+  with_items: "{{ ansemjo_usermanagement_users }}"

@@ -1,16 +1,35 @@
 ---
+# explanation of keys is given in a comment at the end of the line.
+# an *asterisk means that this is the default value if the key
+# is omitted. *omit means that the value is omitted altogether and
+# the default is whatever the underlying module uses.
 
-# an array with users managed by ansible (possibly to
-# be used as the ansible_user later on). keys contains
-# a list of paths to public keys.
-ansible_usermanagement_users:
+# groups managed through this role
+ansemjo_usermanagement_groups:
 
-  - name:     ansible
-    group:    ansible
-    comment:  Ansible Management
-    keys:
-      - ~/.ssh/id_ansible.pub
+  - name: ansible   # name? required
+    state: present  # existence? *present|absent
+    system: yes     # is system group? *yes|no
+    sudo: no        # allow pwless sudo for members? yes|*no
 
-# the user that manages the above users
-# in the default playbook
-ansible_usermanagement_manager: root
+# users managed through this role
+ansemjo_usermanagement_users:
+
+  - name: ansible             # name? required
+    group: ansible            # primary group? *omit
+    groups: []                # additional groups? *omit
+    comment: Ansible User     # GECOS comment? *'Managed by Ansible'
+    home: /var/lib/ansible    # home directory? *omit
+    create_home: yes          # create home? *omit|yes|no
+    shell: /bin/sh            # default shell? *omit
+    skeleton: /dev/null       # skel directory for home? *omit
+    state: present            # existence? *present|absent
+    system: yes               # is system user? *yes|no
+    authorized_keys:          # list of authorized keys?
+      - "{{ lookup('file', '~/.ssh/id_ansible.pub') }}"
+
+# sudoers file to use for passwordless sudo allowances
+ansemjo_usermanagement_sudoers: /etc/sudoers.d/ansible-managed
+# delete file before writing rules, ensuring it's clean
+ansemjo_usermanagement_cleansudoers: false
+# DO NOT use this if you use /etc/sudoers! you'll probably break sudo ..
