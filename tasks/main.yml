@@ -1,0 +1,47 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: create management groups
+  group:
+    name: "{{ item.group }}"
+    system: true
+  loop_control:
+    label: "{{ item.group }}"
+  with_items: "{{ ansible_usermanagement_users }}"
+
+- name: create management users
+  user:
+    name: "{{ item.name }}"
+    group: "{{ item.group }}"
+    comment: "{{ item.comment }}"
+  loop_control:
+    label: "{{ item.name }}"
+  with_items: "{{ ansible_usermanagement_users }}"
+
+- name: add authorized keys per user
+  authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ lookup('file', item.1) }}"
+  loop_control:
+    label:
+      user: "{{ item.0.name }}"
+      key: "{{ item.1 }}"
+  with_subelements:
+    - "{{ ansible_usermanagement_users }}"
+    - keys
+
+- name: ensure sudo is installed
+  package:
+    name: sudo
+    state: present
+
+- name: allow passwordless sudo for group
+  lineinfile:
+    dest: /etc/sudoers.d/ansible-managed
+    create: true
+    regexp: "^%{{ item.group }}"
+    line: "%{{ item.group }} ALL=(ALL) NOPASSWD: ALL"
+    validate: visudo -cf %s
+  loop_control:
+    label: "{{ item.group }}"
+  with_items: "{{ ansible_usermanagement_users }}"

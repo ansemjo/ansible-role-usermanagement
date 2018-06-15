@@ -1,0 +1,15 @@
+---
+
+# an array with users managed by ansible (possibly to
+# be used as the ansible_user later on). keys contains
+# a list of paths to public keys.
+ansible_usermanagement_users:
+
+  - name:     ansible
+    group:    ansible
+    comment:  Ansible Management
+    keys:
+      - ~/.ssh/id_ansible.pub
+
+# the user that manages the above users
+ansible_usermanagement_manager: root
