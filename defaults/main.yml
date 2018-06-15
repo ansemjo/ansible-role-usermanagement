@@ -12,4 +12,5 @@ ansible_usermanagement_users:
       - ~/.ssh/id_ansible.pub
 
 # the user that manages the above users
+# in the default playbook
 ansible_usermanagement_manager: root

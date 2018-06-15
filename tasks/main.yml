@@ -3,29 +3,29 @@
 
 - name: create management groups
   group:
-    name: "{{ item.group }}"
+    name: "{{ item.group | default(item.name) | mandatory }}"
     system: true
   loop_control:
-    label: "{{ item.group }}"
+    label: "{{ item.group | default(item.name) | mandatory }}"
   with_items: "{{ ansible_usermanagement_users }}"
 
 - name: create management users
   user:
-    name: "{{ item.name }}"
-    group: "{{ item.group }}"
-    comment: "{{ item.comment }}"
+    name: "{{ item.name | mandatory }}"
+    group: "{{ item.group | default(item.name) }}"
+    comment: "{{ item.comment | default('Managed by Ansible') }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.name | mandatory }}"
   with_items: "{{ ansible_usermanagement_users }}"
 
 - name: add authorized keys per user
   authorized_key:
     user: "{{ item.0.name }}"
-    key: "{{ lookup('file', item.1) }}"
+    key: "{{ lookup('file', item.1) | mandatory }}"
   loop_control:
     label:
       user: "{{ item.0.name }}"
-      key: "{{ item.1 }}"
+      key: "{{ item.1 | mandatory }}"
   with_subelements:
     - "{{ ansible_usermanagement_users }}"
     - keys
@@ -35,13 +35,19 @@
     name: sudo
     state: present
 
-- name: allow passwordless sudo for group
+- name: TRANSITION / ensure clean sudoers file
+  file:
+    path: /etc/sudoers.d/ansible-managed
+    state: absent
+  when: ansible_usermanagement_transition | default(true)
+
+- name: allow passwordless sudo for users
   lineinfile:
     dest: /etc/sudoers.d/ansible-managed
     create: true
-    regexp: "^%{{ item.group }}"
-    line: "%{{ item.group }} ALL=(ALL) NOPASSWD: ALL"
+    regexp: "^{{ item.name }}"
+    line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
     validate: visudo -cf %s
   loop_control:
-    label: "{{ item.group }}"
+    label: "{{ item.group | default(item.name) }}"
   with_items: "{{ ansible_usermanagement_users }}"
