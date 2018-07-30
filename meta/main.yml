@@ -1,0 +1,8 @@
+galaxy_info:
+  author: Anton Semjonov
+  description: Manage groups and users with passwordless sudo permissions for subsequent usage by ansible
+  license: MIT
+  min_ansible_version: 1.2
+  galaxy_tags: []
+  role_name: usermanagement
+dependencies: []
