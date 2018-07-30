@@ -1,8 +1,0 @@
-#!/usr/bin/env ansible-playbook
----
-- name: add ansible management user
-  hosts: all
-  remote_user: root
-  gather_facts: false
-  roles:
-    - ansemjo.usermanagement
