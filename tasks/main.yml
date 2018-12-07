@@ -39,10 +39,17 @@
     - "{{ ansemjo_usermanagement_users }}"
     - authorized_keys
 
+- name: check sudo availability
+  shell: command -v sudo >/dev/null 2>&1
+  register: sudo_exists
+  ignore_errors: true
+  changed_when: false
+
 - name: ensure sudo is installed
   package:
     name: sudo
     state: present
+  when: sudo_exists is failed
 
 - name: ensure clean sudoers file
   file:
